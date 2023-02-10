@@ -2,7 +2,7 @@ import cv2
 import numpy as np 
 import math
 
-cap = cv2.VideoCapture("test_video02.mp4")
+cap = cv2.VideoCapture(0)
 
 min_slope = -0.1
 max_slope = 0.1
@@ -32,6 +32,21 @@ def pwm(sum_slope):
         left_pwm = left_pwm*sum_slope
     return right_pwm,left_pwm
 
+def perspective(frame,x_size,y_size):
+    width, height = 640,480
+    x_change = float(x_size/width)
+    y_change = float(y_size/height)
+    x_coordinate = np.array([68,1,639,577], dtype=np.float32)
+    y_coordinate = np.array([180,228,228,180], dtype=np.float32)
+
+    x_coordinate = x_coordinate*x_change
+    y_coordinate = y_coordinate*y_change
+    pts1 = np.float32(([ x_coordinate[0], y_coordinate[0]],[x_coordinate[1], y_coordinate[1]],[x_coordinate[2], y_coordinate[2]],[x_coordinate[3],y_coordinate[3]]))
+    pts2 = np.float32(([0,0],[0,y_size],[x_size,y_size],[x_size,0]))
+    matrix = cv2.getPerspectiveTransform(pts1, pts2)
+    frameoutput = cv2.warpPerspective(frame, matrix, (x_size,y_size))
+
+    return frameoutput
 
 def main():
 
@@ -41,8 +56,8 @@ def main():
     w=640
     h=480
 #adjust size
-    x_size = 640
-    y_size = 480
+    x_size = 400
+    y_size = 300
     path_list = []
     
 
@@ -60,10 +75,7 @@ def main():
         if ret:
             crop_frame = frame[y:h-y, x:w-x]
             size = cv2.resize(crop_frame, (x_size,y_size), interpolation=cv2.INTER_AREA)
-            #pts1 = np.float32(([135,10],[40,70],[520,70],[435,10]))
-            #pts2 = np.float32(([0,0],[0,480],[640,480],[640,0]))
-            #matrix = cv2.getPerspectiveTransform(pts1, pts2)
-            #frameoutput = cv2.warpPerspective(size, matrix, (w-x,h-y))
+            size = perspective(size,x_size,y_size)
             gray = cv2.cvtColor(size, cv2.COLOR_BGR2GRAY)
             blur = cv2.GaussianBlur(gray, (5,5), 0)
             edges = cv2.Canny(blur, 75, 100)
@@ -72,8 +84,6 @@ def main():
             sum_slope = 0
             count = 0
             final_slope = 0
-            right_pwm = 255
-            left_pwm = 255
             if lines is None: 
                 continue
             if lines is not None:
@@ -108,18 +118,20 @@ def main():
                 if len(path_list) == 60:
                     path_list.pop(0)
 
-            if 0.1 > final_slope > -0.1:
-                print("straight")
-            elif 0.2 > final_slope > 0.1:
+           # if 0.1 > final_slope > -0.1:
+               # print("straight")
+          #  elif 0.2 > final_slope > 0.1:
                 print("right")
-            elif final_slope > 0.2:
-                print("BIG right")
-            elif -0.2 < final_slope < -0.1:
-                print("left")
-            elif final_slope < -0.2:
-                print("BIG left")
-            #print("final_slope:",final_slope)
+         #   elif final_slope > 0.2:
+               # print("BIG right")
+           # elif -0.2 < final_slope < -0.1:
+               # print("left")
+            #elif final_slope < -0.2:
+                #print("BIG left")
+            print("final_slope:",final_slope)
             cv2.imshow("frame",size)
+            print(size.shape)
+            
 
         if cv2.waitKey(30) == ord('q'):
             break
